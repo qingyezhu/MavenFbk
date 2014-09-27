@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+	数据访问接口映射文件
+-->
+<mapper namespace="com.gwssi.dao.IndicatorDao">
+
+	<select id="getFbzd" resultType="TreeNode">
+		select fbzd.fbzd_dm id,fbzd.fbzd_mc name,'closed' state,'FBZD' kind
+		 from fbk_fbzd fbzd where exists (select 1 from fbk_fbzd zd,fbgqbzd f
+		  where zd.fbzd_dm = fbzd.fbzd_dm and f.fbzd_dm = zd.fbzd_dm
+		   and f.fbzd_qbbz = #{bgqbDm}
+		<if test="!fbzdFjd">
+			and zd.fbzd_fjd is null
+		</if>
+		<if test="fbzdFjd != null and fbzdFjd != ''">
+			and zd.fbzd_fjd = #{fbzdFjd}			
+		</if>
+		) order by id
+	</select>
+	
+	<select id="getIndicator" resultType="TreeNode">
+		select zb.zb_id id,zb.zb_cn_jc name,'ITEM' kind,
+		case zb.sf_mx when '0' then 'closed' when '1' then 'open' end state
+		 from fbk_zb zb where zb.sy_zt != '7' and zb.zb_bb = '1'
+		<if test="bgqbDm == '1'">
+			and zb.nb_zb = '1'			
+		</if>
+		<if test="bgqbDm == '3'">
+			and zb.jb_zb = '1'			
+		</if>
+		<if test="bgqbDm == '4'">
+			and zb.yb_zb = '1'			
+		</if>
+		<if test="kind == 'FBZD'">
+			and zb.fbzd_dm = #{id}		
+			and zb.zb_fjd is null		
+		</if>
+		<if test="kind != 'FBZD'">
+			and zb.zb_fjd = #{id}			
+		</if>
+	</select>
+	
+	<!--
+
+		<select id="getTablesByIndicator" resultType="java.util.HashMap">
+			select fbzd.fbzd_htccb,zb.zb_id from fbk_zb zb,fbk_fbzd fbzd where fbzd.fbzd_dm = zb.fbzd_dm		
+			and zb.zb_id in
+			<foreach collection="zbIdArr" index="index" item="zbId" open="(" close=")" separator=",">
+				#{zbId}
+			</foreach>
+		</select>
+
+		<select id="getTablesByIndicator" resultType="java.util.HashMap">
+			select fbzd.fbzd_htccb,zb.zb_id from fbk_zb zb,fbk_fbzd fbzd where fbzd.fbzd_dm = zb.fbzd_dm		
+			<foreach collection="zbIdArr" index="index" item="zbId" open="and (" close=")" separator=" or ">
+				zb.zb_id = #{zbId}
+			</foreach>
+		</select>
+
+		-->
+	<resultMap id="zbTables" type="java.util.Map">
+		<id column="zb_id" property="zb_id"/>
+		<result column="fbzd_htccb" property="fbzd_htccb"/>
+	</resultMap>
+	
+	<select id="getTablesByIndicator" resultMap="zbTables">
+		select fbzd.fbzd_htccb,zb.zb_id from fbk_zb zb,fbk_fbzd fbzd
+		 where fbzd.fbzd_dm = zb.fbzd_dm		
+		<foreach collection="zbIdArr" index="index" item="zbId"
+			open=" and (" close=")" separator=" or ">
+			zb.zb_id = #{zbId}
+		</foreach>
+	</select>
+	
+	<resultMap id="zbfzgls" type="java.lang.String">
+		<id column="zbfzglid" property="zbfzglid"/>
+	</resultMap>
+	
+	<select id="getZbfzglByIndicator" resultMap="zbfzgls">
+		select zbfzgl.zbfzglid from fbk_zbfzgl zbfzgl 
+		where exists(select 1 from fbk_zbfzx zbfzx
+		 where zbfzx.zbfzglid = zbfzgl.zbfzglid) and zbfzgl.zbid = #{zbId}
+	</select>
+	
+	<resultMap id="fzfzxzdyxs" type="java.util.Map">
+		<id column="zbfzglid" property="zbfzglid"/>
+		<result column="dycclm" property="dycclm"/>
+		<result column="fz_id" property="fz_id"/>
+		<result column="fzx_id" property="fzx_id"/>
+		<result column="fzx_cn_qc" property="fzx_cn_qc"/>
+	</resultMap>
+	
+	<select id="getFzFzxZdyx" resultMap="fzfzxzdyxs">
+		select zbfzx.zbfzglid,zdxdygx.dycclm,fzfx.fz_id,fzfx.fzx_id,fzfx.fzx_cn_qc
+		 from fbk_fzfx fzfx,fbk_zbfzx zbfzx
+		left join fbk_zdxdygx zdxdygx on (zdxdygx.dyfzid = zbfzx.fzid)
+		where zbfzx.fzxid=fzfx.fzx_id and zbfzx.fzid = fzfx.fz_id
+		and zdxdygx.sjbm = #{sjbm}
+		<foreach collection="zbfzgls" index="index" item="zbfzglId"
+			open=" and (" close=")" separator=" or " >
+			zbfzx.zbfzglid=#{zbfzglId}
+		</foreach>
+		order by zbfzx.zbfzglid,fzfx.fz_id,fzfx.fzx_id
+	</select>
+	
+	<resultMap id="indicatorSjs" type="java.util.Map">
+		<id column="SJ_Z" property="SJ_Z"/>
+		<result column="BGQ_DM" property="BGQ_DM"/>
+		<result column="SJ_BGQMC" property="SJ_BGQMC"/>
+		<result column="XZQY_NM" property="XZQY_NM"/>
+	</resultMap>
+	
+	<select id="getIndicatorSj" resultType="java.util.Map" statementType="STATEMENT" >
+		${sql}
+	</select>
+</mapper>
